@@ -1,0 +1,20 @@
+# Core deep learning
+torch>=2.0.0
+torchaudio>=2.0.0
+
+# Hugging Face ecosystem
+transformers>=4.40.0
+datasets>=2.18.0
+
+# Federated learning
+flwr>=1.8.0
+
+# Data handling
+numpy>=1.24.0
+pandas>=2.0.0
+
+# Progress bars
+tqdm>=4.66.0
+
+# Optional but useful
+scipy>=1.10.0
