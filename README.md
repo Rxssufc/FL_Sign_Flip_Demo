@@ -7,7 +7,9 @@ This repository contains a Flower-based federated learning setup for training Wa
 ##  Data
 
 - The `data/` folder is **not included** here.  
-- Download the prepared `data` folder from Google Drive (link provided by supervisor) and place it at the project root so the structure is:
+- Download the prepared `data` folder from OneDrive link below:
+- https://newcastle-my.sharepoint.com/:f:/g/personal/c2036087_newcastle_ac_uk/EnFpRms2dEpJqs3RaYKvUKEBjGT5IahWwFMhv8Us0DJ2WA?e=NrhzBa
+- and place it at the project root so the structure is:
 - data/Client1
 - data/client_1.csv
 - follow this for x amount of clients
@@ -73,5 +75,6 @@ If results are to be published please reference this dataset.
 ## Credit
 
 This work was developed by Ross Whitfield with guidance and help from Prof. S Nagaraja
+
 
 
