@@ -17,19 +17,64 @@ class CaptchaDataset(Dataset):
             processor: HuggingFace Wav2Vec2Processor
         """
         self.processor = processor
+
         if not os.path.exists(csv_path):
             raise FileNotFoundError(f"CSV not found: {csv_path}")
+
+        self.csv_path = os.path.abspath(csv_path)
+        self.base_dir = os.path.dirname(self.csv_path)            # .../FlowerProject/data
+        self.repo_root = os.path.dirname(self.base_dir)           # .../FlowerProject
+
         df = pd.read_csv(csv_path)
+        if "filename" not in df.columns or "text" not in df.columns:
+            raise ValueError(f"CSV {csv_path} must have columns ['filename','text']")
+
         self.samples = df[['filename', 'text']].values.tolist()
 
     def __len__(self):
         return len(self.samples)
 
+    def _resolve_path(self, p: str) -> str:
+        """Make CSV paths portable across Windows/Linux and repo layouts.
+
+        Rules:
+        - Normalize backslashes -> forward slashes.
+        - Absolute paths: return as-is.
+        - Paths starting with ./data/ or data/: resolve from repo root.
+        - Everything else: resolve relative to the CSV's folder.
+        """
+        p = str(p).strip().replace("\\", "/")
+        if os.path.isabs(p):
+            return os.path.normpath(p)
+
+        # Strip leading './' if present
+        p_wo_dot = p[2:] if p.startswith("./") else p
+
+        if p_wo_dot.startswith("data/"):
+            full = os.path.join(self.repo_root, p_wo_dot)
+        else:
+            full = os.path.join(self.base_dir, p_wo_dot)
+
+        return os.path.normpath(full)
+
     def __getitem__(self, idx):
-        wav_path, raw_label = self.samples[idx]
+        rel_path, raw_label = self.samples[idx]
+        wav_path = self._resolve_path(rel_path)
+
+        if not os.path.exists(wav_path):
+            raise FileNotFoundError(
+                f"Audio file not found: '{wav_path}' "
+                f"(from CSV '{self.csv_path}', original entry='{rel_path}')"
+            )
 
         # Load as float32 (torchaudio default) [channels, time]
-        waveform, sample_rate = torchaudio.load(wav_path)
+        try:
+            waveform, sample_rate = torchaudio.load(wav_path)
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to load audio '{wav_path}'. "
+                f"If it's MP3/FLAC on Colab, install FFmpeg first: `!apt -y install ffmpeg`."
+            ) from e
 
         # Convert to mono if multi-channel
         if waveform.ndim == 2 and waveform.size(0) > 1:
@@ -46,11 +91,10 @@ class CaptchaDataset(Dataset):
             waveform = waveform[..., :MAX_SAMPLES]
 
         # Prepare label
-        label = raw_label.strip().upper()
+        label = str(raw_label).strip().upper()
 
         # Processor expects numpy or list; keep float32
         audio_np = waveform.squeeze(0).contiguous().numpy()
-
 
         inputs = self.processor(
             audio_np,
@@ -77,7 +121,6 @@ class CaptchaDataset(Dataset):
 
 def load_client_dataset(client_id, processor, adversarial=False, batch_size=1):
     # Prefer an _adv CSV only if it exists; otherwise fall back.
-    # _adv can be used to test training clients with label flipping attacks etc.
     adv_csv = f"./data/client_{client_id}_adv.csv"
     base_csv = f"./data/client_{client_id}.csv"
 
